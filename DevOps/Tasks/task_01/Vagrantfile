@@ -1,0 +1,39 @@
+
+require 'vagrant-openstack-provider'
+Vagrant.configure('2') do |config|
+ config.env.enable
+ config.ssh.username = 'ubuntu'
+ config.ssh.private_key_path = "C:/Users/Administrator/Desktop/Task/cynthia-vagrant-key.pem"
+ config.vm.provider :openstack do |os, override|
+ os.identity_api_version = ENV['OS_IDENTITY_API_VERSION']
+ os.openstack_auth_url = ENV['OS_AUTH_URL']
+ os.domain_name = ENV['OS_DOMAIN_NAME']
+ os.username = ENV['OS_USERNAME']
+ os.password = ENV['OS_PASSWORD']
+ os.tenant_name = ENV['OS_TENANT_NAME']
+ os.project_name = ENV['OS_PROJECT_NAME']
+ os.keypair_name = ENV['OS_KEY_PAIR_NAME']
+ os.region = ENV['OS_REGION_NAME']
+ os.image = ENV['OS_IMAGE']
+ end
+ config.vm.define 'fa-server-1' do |s|
+   s.vm.provision "docker" do | docker |
+     docker.pull_images "sonarqube:5.6.6-alpine"
+     docker.pull_images "gocd/gocd-agent-alpine-3.5:v17.3.0"
+     docker.pull_images "gocd/gocd-server:v17.3.0"
+   end
+ s.vm.provision "docker_compose"
+ s.vm.provider :openstack do |os, override|
+   os.server_name = 'fa-gocd-vm-1'
+   os.flavor = 'f2.desktop.small'
+   override.vm.synced_folder '.', '/vagrant', disabled: true
+ end
+ config.vm.provision "shell", inline: <<-SHELL
+    sudo add-apt-repository -y ppa:webupd8team/java
+    sudo apt-get update
+    echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-selections 
+    echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections
+    sudo apt-get -y install oracle-java8-installer
+  SHELL
+ end
+end
